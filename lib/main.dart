@@ -34,7 +34,7 @@ class _JokeSwipePageState extends State<JokeSwipePage> {
     for (int i = 0; i < 20; i++) {
       _swipeItems.add(
         SwipeItem(
-          content: 'card $i',
+          content: 'card $i While developing this dating app I tried various flutter libraries but none oWhile developing this dating app I tried various flutter libraries but none oWhile developing this dating app I tried various flutter libraries but none oWhile developing this dating app I tried various flutter libraries but none oWhile developing this dating app I tried various flutter libraries but none oWhile developing this dating app I tried various flutter libraries but none oWhile developing this dating app I tried various flutter libraries but none o',
           likeAction: () {
             print('liked');
           },
@@ -76,9 +76,12 @@ class _JokeSwipePageState extends State<JokeSwipePage> {
                     ),
                     elevation: 8,
                     child: Center(
-                      child: Text(
-                        _swipeItems[index].content as String,
-                        style: const TextStyle(fontSize: 48)
+                      child: SingleChildScrollView(
+                        scrollDirection: Axis.vertical,
+                        child: Text(
+                          _swipeItems[index].content as String,
+                          style: const TextStyle(fontSize: 48)
+                        ),
                       )
                     )
                   );
