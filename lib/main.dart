@@ -12,6 +12,14 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Jokes App',
+      theme: ThemeData(
+        useMaterial3: true,
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Colors.blue,
+          foregroundColor: Colors.white,
+        ),
+      ),
       home: JokeSwipePage(),
       debugShowCheckedModeBanner: false,
     );
@@ -26,15 +34,25 @@ class JokeSwipePage extends StatefulWidget {
 }
 
 class _JokeSwipePageState extends State<JokeSwipePage> {
-  List<SwipeItem> _swipeItems = <SwipeItem>[];
+  final List<SwipeItem> _swipeItems = <SwipeItem>[];
   MatchEngine? _matchEngine;
+
+  final List<String> _jokes = [
+    'What do you call a magic dog? A labracadabrador!',
+    'What do you call a pony with a cough? A little horse!',
+    'What\'s orange and sounds like a carrot? A parrot!',
+    'What did the pirate say when he turned 80? Aye matey!',
+    'Why did the frog take the bus to work today? His car got toad away!'
+  ];
 
   @override
   void initState() {
-    for (int i = 0; i < 20; i++) {
+    super.initState();
+    
+    for (int i = 0; i < 5; i++) {
       _swipeItems.add(
         SwipeItem(
-          content: 'card $i While developing this dating app I tried various flutter libraries but none oWhile developing this dating app I tried various flutter libraries but none oWhile developing this dating app I tried various flutter libraries but none oWhile developing this dating app I tried various flutter libraries but none oWhile developing this dating app I tried various flutter libraries but none oWhile developing this dating app I tried various flutter libraries but none oWhile developing this dating app I tried various flutter libraries but none o',
+          content: _jokes[i],
           likeAction: () {
             print('liked');
           },
@@ -46,7 +64,6 @@ class _JokeSwipePageState extends State<JokeSwipePage> {
     }
 
     _matchEngine = MatchEngine(swipeItems: _swipeItems);
-    super.initState();
   }
 
   @override
@@ -64,7 +81,8 @@ class _JokeSwipePageState extends State<JokeSwipePage> {
           ),
       
           SizedBox(
-            height: MediaQuery.of(context).size.height * 0.5,
+            width: double.infinity,
+            height: MediaQuery.of(context).size.height * 0.4,
             child: Padding(
               padding: const EdgeInsets.only(left: 20.0, right: 20.0),
               child: SwipeCards(
@@ -78,9 +96,15 @@ class _JokeSwipePageState extends State<JokeSwipePage> {
                     child: Center(
                       child: SingleChildScrollView(
                         scrollDirection: Axis.vertical,
-                        child: Text(
-                          _swipeItems[index].content as String,
-                          style: const TextStyle(fontSize: 48)
+                        child: Padding(
+                          padding: const EdgeInsets.all(20.0),
+                          child: Center(
+                            child: Text(
+                              _swipeItems[index].content as String,
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(fontSize: 25)
+                            ),
+                          ),
                         ),
                       )
                     )
