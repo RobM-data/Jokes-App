@@ -47,8 +47,8 @@ class _JokeSwipePageState extends State<JokeSwipePage> {
   final List<SwipeItem> _swipeItems = <SwipeItem>[];
   MatchEngine? _matchEngine;
 
-  Future<List<Map<String, dynamic>>> fetchJokes() async {
-    final data = await supabase.from('jokes').select('text').limit(5);
+  Future<List<Map<String, dynamic>>> fetchJokes(int limit) async {
+    final data = await supabase.from('jokes').select('text').limit(limit);
     return (data as List).cast<Map<String, dynamic>>();
   }
 
@@ -56,7 +56,7 @@ class _JokeSwipePageState extends State<JokeSwipePage> {
   void initState() {
     super.initState();
 
-    fetchJokes().then((jokes) {
+    fetchJokes(5).then((jokes) {
       for (final row in jokes) {
         _swipeItems.add(
           SwipeItem(
@@ -93,35 +93,37 @@ class _JokeSwipePageState extends State<JokeSwipePage> {
             height: MediaQuery.of(context).size.height * 0.4,
             child: Padding(
               padding: const EdgeInsets.only(left: 20.0, right: 20.0),
-              child: SwipeCards(
-                matchEngine: _matchEngine!,
-                itemBuilder: (BuildContext context, int index) {
-                  return Card(
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(24)
-                    ),
-                    elevation: 8,
-                    child: Center(
-                      child: SingleChildScrollView(
-                        scrollDirection: Axis.vertical,
-                        child: Padding(
-                          padding: const EdgeInsets.all(20.0),
-                          child: Center(
-                            child: Text(
-                              _swipeItems[index].content as String,
-                              textAlign: TextAlign.center,
-                              style: const TextStyle(fontSize: 25)
-                            ),
-                          ),
+              child: _matchEngine == null
+                ?  const Center(child: CircularProgressIndicator())
+                :  SwipeCards(
+                    matchEngine: _matchEngine!,
+                    itemBuilder: (BuildContext context, int index) {
+                      return Card(
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(24)
                         ),
-                      )
-                    )
-                  );
-                },
-                onStackFinished: () {
-                  debugPrint('out of cards');
-                },
-              ),
+                        elevation: 8,
+                        child: Center(
+                          child: SingleChildScrollView(
+                            scrollDirection: Axis.vertical,
+                            child: Padding(
+                              padding: const EdgeInsets.all(20.0),
+                              child: Center(
+                                child: Text(
+                                  _swipeItems[index].content as String,
+                                  textAlign: TextAlign.center,
+                                  style: const TextStyle(fontSize: 25)
+                                ),
+                              ),
+                            ),
+                          )
+                        )
+                      );
+                    },
+                    onStackFinished: () {
+                      debugPrint('out of cards');
+                    },
+                  ),
             ),
           ),
       
