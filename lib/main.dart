@@ -1,9 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:swipe_cards/swipe_cards.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  await Supabase.initialize(
+    url: 'https://ejdsujnylmsbpjavohhm.supabase.co',
+    anonKey: 'sb_publishable_Wl8K7XU1pvyRxL31oKAcjA_YP1LEvNY',
+  );
+
   runApp(const MyApp());
 }
+
+final supabase = Supabase.instance.client;
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
@@ -37,33 +47,31 @@ class _JokeSwipePageState extends State<JokeSwipePage> {
   final List<SwipeItem> _swipeItems = <SwipeItem>[];
   MatchEngine? _matchEngine;
 
-  final List<String> _jokes = [
-    'What do you call a magic dog? A labracadabrador!',
-    'What do you call a pony with a cough? A little horse!',
-    'What\'s orange and sounds like a carrot? A parrot!',
-    'What did the pirate say when he turned 80? Aye matey!',
-    'Why did the frog take the bus to work today? His car got toad away!'
-  ];
+  Future<List<Map<String, dynamic>>> fetchJokes() async {
+    final data = await supabase.from('jokes').select('text').limit(5);
+    return (data as List).cast<Map<String, dynamic>>();
+  }
 
   @override
   void initState() {
     super.initState();
-    
-    for (int i = 0; i < 5; i++) {
-      _swipeItems.add(
-        SwipeItem(
-          content: _jokes[i],
-          likeAction: () {
-            print('liked');
-          },
-          nopeAction: () {
-            print('noped');
-          },
-        ),
-      );
+
+    fetchJokes().then((jokes) {
+      for (final row in jokes) {
+        _swipeItems.add(
+          SwipeItem(
+            content: row['text'] as String,
+            likeAction: () => print('liked'),
+            nopeAction: () => print('noped'),
+          ),
+        );
     }
 
-    _matchEngine = MatchEngine(swipeItems: _swipeItems);
+      setState(() {
+        _matchEngine = MatchEngine(swipeItems: _swipeItems);
+      });
+    });
+
   }
 
   @override
