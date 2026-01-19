@@ -65,13 +65,12 @@ class _JokeSwipePageState extends State<JokeSwipePage> {
             nopeAction: () => print('noped'),
           ),
         );
-    }
+      }
 
       setState(() {
         _matchEngine = MatchEngine(swipeItems: _swipeItems);
       });
     });
-
   }
 
   @override
@@ -80,54 +79,63 @@ class _JokeSwipePageState extends State<JokeSwipePage> {
       appBar: AppBar(title: Text('Jokes App')),
       body: Column(
         children: [
-          const Padding(
-            padding: EdgeInsets.all(16),
-            child: Text(
-              'swipe jokes',
-              style: TextStyle(fontSize: 24)
-            )
-          ),
-      
+          const Padding(padding: EdgeInsets.all(16)),
+
           SizedBox(
             width: double.infinity,
             height: MediaQuery.of(context).size.height * 0.4,
             child: Padding(
               padding: const EdgeInsets.only(left: 20.0, right: 20.0),
               child: _matchEngine == null
-                ?  const Center(child: CircularProgressIndicator())
-                :  SwipeCards(
-                    matchEngine: _matchEngine!,
-                    itemBuilder: (BuildContext context, int index) {
-                      return Card(
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(24)
-                        ),
-                        elevation: 8,
-                        child: Center(
-                          child: SingleChildScrollView(
-                            scrollDirection: Axis.vertical,
-                            child: Padding(
-                              padding: const EdgeInsets.all(20.0),
-                              child: Center(
-                                child: Text(
-                                  _swipeItems[index].content as String,
-                                  textAlign: TextAlign.center,
-                                  style: const TextStyle(fontSize: 25)
+                  ? const Center(child: CircularProgressIndicator())
+                  : SwipeCards(
+                      matchEngine: _matchEngine!,
+                      itemBuilder: (BuildContext context, int index) {
+                        return Card(
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(24),
+                          ),
+                          elevation: 8,
+                          child: Center(
+                            child: SingleChildScrollView(
+                              scrollDirection: Axis.vertical,
+                              child: Padding(
+                                padding: const EdgeInsets.all(20.0),
+                                child: Center(
+                                  child: Text(
+                                    _swipeItems[index].content as String,
+                                    textAlign: TextAlign.center,
+                                    style: const TextStyle(fontSize: 25),
+                                  ),
                                 ),
                               ),
                             ),
-                          )
-                        )
-                      );
-                    },
-                    onStackFinished: () {
-                      debugPrint('out of cards');
-                    },
-                  ),
+                          ),
+                        );
+                      },
+                      onStackFinished: () {
+                        debugPrint('out of cards');
+                      },
+                    ),
             ),
           ),
-      
         ],
+      ),
+      bottomNavigationBar: BottomNavigationBar(
+        items: const [
+          BottomNavigationBarItem(
+            icon: Icon(Icons.swipe),
+            label: 'Swipe Jokes',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.style),
+            label: 'Decks',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.create),
+            label: 'Submit Joke',
+          ),
+        ]
       ),
     );
   }
