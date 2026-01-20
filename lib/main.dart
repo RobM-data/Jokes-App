@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:swipe_cards/swipe_cards.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'services/joke_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -47,30 +48,48 @@ class _JokeSwipePageState extends State<JokeSwipePage> {
   final List<SwipeItem> _swipeItems = <SwipeItem>[];
   MatchEngine? _matchEngine;
 
-  Future<List<Map<String, dynamic>>> fetchJokes(int limit) async {
-    final data = await supabase.from('jokes').select('text').limit(limit);
-    return (data as List).cast<Map<String, dynamic>>();
+  late final JokeService _jokeService;
+
+  Future<void> _reloadJokes() async {
+    setState(() {
+      _matchEngine = null;
+      _swipeItems.clear();
+    });
+
+    try {
+      final jokes = await _jokeService.fetchJokes(limit: 10);
+
+      final newItems = jokes.map((row) {
+        return SwipeItem(
+          content: row['text'] as String,
+          likeAction: () => debugPrint('liked'),
+          nopeAction: () => debugPrint('noped'),
+        );
+      }).toList();
+
+      setState(() {
+        _swipeItems.addAll(newItems);
+        _matchEngine = MatchEngine(swipeItems: _swipeItems);
+      });
+    } catch (e, st) {
+      debugPrint('Error reloading jokes: $e\n$st');
+
+      if (mounted) {
+        setState(() {
+          _matchEngine = MatchEngine(swipeItems: _swipeItems);
+        });
+      }
+    }
   }
+
 
   @override
   void initState() {
     super.initState();
 
-    fetchJokes(5).then((jokes) {
-      for (final row in jokes) {
-        _swipeItems.add(
-          SwipeItem(
-            content: row['text'] as String,
-            likeAction: () => print('liked'),
-            nopeAction: () => print('noped'),
-          ),
-        );
-      }
+    _jokeService = JokeService(supabase);
 
-      setState(() {
-        _matchEngine = MatchEngine(swipeItems: _swipeItems);
-      });
-    });
+    _reloadJokes();
   }
 
   @override
@@ -114,6 +133,7 @@ class _JokeSwipePageState extends State<JokeSwipePage> {
                         );
                       },
                       onStackFinished: () {
+                        _reloadJokes();
                         debugPrint('out of cards');
                       },
                     ),
@@ -127,15 +147,12 @@ class _JokeSwipePageState extends State<JokeSwipePage> {
             icon: Icon(Icons.swipe),
             label: 'Swipe Jokes',
           ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.style),
-            label: 'Decks',
-          ),
+          BottomNavigationBarItem(icon: Icon(Icons.style), label: 'Decks'),
           BottomNavigationBarItem(
             icon: Icon(Icons.create),
             label: 'Submit Joke',
           ),
-        ]
+        ],
       ),
     );
   }
