@@ -92,6 +92,17 @@ class _JokeSwipePageState extends State<JokeSwipePage> {
     _reloadJokes();
   }
 
+  double _fontSizeForJoke(String joke) {
+    final length = joke.length.toDouble();
+
+    const maxSize = 40.0;
+    const minSize = 20.0;
+    const maxLength = 350.0;
+
+    final t = (length / maxLength).clamp(0.0, 1.0);
+    return maxSize - (maxSize - minSize) * t;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -102,7 +113,7 @@ class _JokeSwipePageState extends State<JokeSwipePage> {
 
           SizedBox(
             width: double.infinity,
-            height: MediaQuery.of(context).size.height * 0.4,
+            height: MediaQuery.of(context).size.height * 0.55,
             child: Padding(
               padding: const EdgeInsets.only(left: 20.0, right: 20.0),
               child: _matchEngine == null
@@ -124,7 +135,9 @@ class _JokeSwipePageState extends State<JokeSwipePage> {
                                   child: Text(
                                     _swipeItems[index].content as String,
                                     textAlign: TextAlign.center,
-                                    style: const TextStyle(fontSize: 25),
+                                    style: TextStyle(
+                                      fontSize: _fontSizeForJoke(_swipeItems[index].content as String),
+                                    ),
                                   ),
                                 ),
                               ),
