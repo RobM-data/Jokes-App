@@ -82,7 +82,6 @@ class _JokeSwipePageState extends State<JokeSwipePage> {
     }
   }
 
-
   @override
   void initState() {
     super.initState();
@@ -106,7 +105,18 @@ class _JokeSwipePageState extends State<JokeSwipePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('Jokes App')),
+      appBar: AppBar(
+        titleSpacing: 0,
+        title: Row(
+          children: [
+            Padding(
+              padding: const EdgeInsets.only(left: 12),
+              child: Image.asset('assets/logo.png', height: 32),
+            ),
+          ],
+        ),
+      ),
+
       body: Column(
         children: [
           const Padding(padding: EdgeInsets.all(16)),
@@ -136,7 +146,9 @@ class _JokeSwipePageState extends State<JokeSwipePage> {
                                     _swipeItems[index].content as String,
                                     textAlign: TextAlign.center,
                                     style: TextStyle(
-                                      fontSize: _fontSizeForJoke(_swipeItems[index].content as String),
+                                      fontSize: _fontSizeForJoke(
+                                        _swipeItems[index].content as String,
+                                      ),
                                     ),
                                   ),
                                 ),
