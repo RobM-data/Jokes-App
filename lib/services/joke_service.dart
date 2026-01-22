@@ -20,14 +20,14 @@ class JokeService {
 
     final windowData = await _supabase
         .from('jokes')
-        .select('text')
+        .select('id, text')
         .range(offset, offset + windowSize - 1);
 
     final List<Map<String, dynamic>> jokes =
         (windowData as List).cast<Map<String, dynamic>>();
 
     jokes.shuffle(_rng);
-    
+
     return jokes.take(finalCount).toList();
   }
 }

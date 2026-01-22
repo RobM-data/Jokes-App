@@ -2,13 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:swipe_cards/swipe_cards.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'services/joke_service.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'services/device_user_id.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  await dotenv.load(fileName: '.env');
+
   await Supabase.initialize(
-    url: 'https://ejdsujnylmsbpjavohhm.supabase.co',
-    anonKey: 'sb_publishable_Wl8K7XU1pvyRxL31oKAcjA_YP1LEvNY',
+    url: dotenv.env['SUPABASE_URL']!,
+    anonKey: dotenv.env['SUPABASE_ANON_KEY']!,
   );
 
   runApp(const MyApp());
@@ -50,6 +54,22 @@ class _JokeSwipePageState extends State<JokeSwipePage> {
 
   late final JokeService _jokeService;
 
+  Future<void> updateSwipes(String jokeId, String action) async {
+    debugPrint('updateSwipes started');
+
+    try {
+      final res = await supabase.from('swipes').upsert({
+        'user_id': deviceUserId,
+        'joke_id': jokeId,
+        'action': action,
+      }).select();
+
+      debugPrint('Swipe logged: $res');
+    } catch (e, st) {
+      debugPrint('Swipe log FAILED: $e\n$st');
+    }
+  }
+
   Future<void> _reloadJokes() async {
     setState(() {
       _matchEngine = null;
@@ -62,8 +82,14 @@ class _JokeSwipePageState extends State<JokeSwipePage> {
       final newItems = jokes.map((row) {
         return SwipeItem(
           content: row['text'] as String,
-          likeAction: () => debugPrint('liked'),
-          nopeAction: () => debugPrint('noped'),
+          likeAction: () {
+            debugPrint('LIKE pressed for id=${row['id']}');
+            updateSwipes(row['id'] as String, 'like');
+          },
+          nopeAction: () {
+            debugPrint('NOPE pressed for id=${row['id']}');
+            updateSwipes(row['id'] as String, 'nope');
+          },
         );
       }).toList();
 
@@ -82,13 +108,19 @@ class _JokeSwipePageState extends State<JokeSwipePage> {
     }
   }
 
+  late String deviceUserId;
+
   @override
   void initState() {
     super.initState();
-
     _jokeService = JokeService(supabase);
+    _init();
+  }
 
-    _reloadJokes();
+  Future<void> _init() async {
+    deviceUserId = await DeviceUserId.getUserId(); // or getOrCreate()
+    await _reloadJokes();
+    if (mounted) setState(() {});
   }
 
   double _fontSizeForJoke(String joke) {
