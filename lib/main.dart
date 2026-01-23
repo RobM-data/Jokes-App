@@ -70,14 +70,17 @@ class _JokeSwipePageState extends State<JokeSwipePage> {
     }
   }
 
+  bool isLoading = false;
+
   Future<void> _reloadJokes() async {
-    setState(() {
-      _matchEngine = null;
-      _swipeItems.clear();
-    });
+    if (isLoading) return;
+    isLoading = true;
 
     try {
-      final jokes = await _jokeService.fetchJokes(limit: 10, userId: deviceUserId);
+      final jokes = await _jokeService.fetchJokes(
+        limit: 10,
+        userId: deviceUserId,
+      );
 
       final newItems = jokes.map((row) {
         return SwipeItem(
@@ -95,16 +98,11 @@ class _JokeSwipePageState extends State<JokeSwipePage> {
 
       setState(() {
         _swipeItems.addAll(newItems);
-        _matchEngine = MatchEngine(swipeItems: _swipeItems);
       });
     } catch (e, st) {
       debugPrint('Error reloading jokes: $e\n$st');
-
-      if (mounted) {
-        setState(() {
-          _matchEngine = MatchEngine(swipeItems: _swipeItems);
-        });
-      }
+    } finally {
+      isLoading = false;
     }
   }
 
@@ -114,6 +112,7 @@ class _JokeSwipePageState extends State<JokeSwipePage> {
   void initState() {
     super.initState();
     _jokeService = JokeService(supabase);
+    _matchEngine = MatchEngine(swipeItems: _swipeItems);
     _init();
   }
 
@@ -188,6 +187,11 @@ class _JokeSwipePageState extends State<JokeSwipePage> {
                             ),
                           ),
                         );
+                      },
+                      itemChanged: (SwipeItem item, int index) {
+                        if (_swipeItems.length - index < 5) {
+                          _reloadJokes();
+                        }
                       },
                       onStackFinished: () {
                         _reloadJokes();
