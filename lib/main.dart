@@ -77,7 +77,7 @@ class _JokeSwipePageState extends State<JokeSwipePage> {
     });
 
     try {
-      final jokes = await _jokeService.fetchJokes(limit: 10);
+      final jokes = await _jokeService.fetchJokes(limit: 10, userId: deviceUserId);
 
       final newItems = jokes.map((row) {
         return SwipeItem(

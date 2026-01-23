@@ -1,7 +1,6 @@
 ### For initial embedding of jokes database, not newly added jokes ###
 
 import os
-import time
 from typing import List, Dict, Any, Optional
 
 from dotenv import load_dotenv

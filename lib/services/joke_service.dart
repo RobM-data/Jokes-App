@@ -7,27 +7,41 @@ class JokeService {
 
   JokeService(this._supabase);
 
+  /// Returns a list of joke_ids the user has swiped
+  Future<List<String>> swipedIds(String userId) async {
+    final data = await _supabase
+        .from('swipes')
+        .select('joke_id')
+        .eq('user_id', userId);
+
+    final List<Map<String, dynamic>> rows = (data as List).cast<Map<String, dynamic>>();
+    return rows.map((row) => row['joke_id'].toString()).toList();
+  }
+
+  /// Fetch random jokes the user hasn't swiped yet
   Future<List<Map<String, dynamic>>> fetchJokes({
     int limit = 10,
-    int finalCount = 10,
     int windowSize = 1000,
+    required String userId,
   }) async {
-    // get number of rows in jokes table
-    final countResponse = 202000;
+    // get list of joke_ids already swiped
+    final swiped = await swipedIds(userId);
 
+    // get number of rows in jokes table (or you can fetch dynamically)
+    final countResponse = 202000;
     final maxOffset = countResponse - windowSize;
     final offset = _rng.nextInt(maxOffset);
 
     final windowData = await _supabase
         .from('jokes')
         .select('id, text')
+        .not('id', 'in', swiped) // <-- pass the awaited list
         .range(offset, offset + windowSize - 1);
 
-    final List<Map<String, dynamic>> jokes =
-        (windowData as List).cast<Map<String, dynamic>>();
+    final List<Map<String, dynamic>> jokes = (windowData as List).cast<Map<String, dynamic>>();
 
     jokes.shuffle(_rng);
 
-    return jokes.take(finalCount).toList();
+    return jokes.take(limit).toList();
   }
 }
