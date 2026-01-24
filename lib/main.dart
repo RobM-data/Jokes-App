@@ -6,6 +6,7 @@ import 'services/joke_service.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'services/device_user_id.dart';
 import 'services/swipe_service.dart';
+import 'services/utils.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -139,17 +140,6 @@ class _JokeSwipePageState extends State<JokeSwipePage> {
     if (mounted) setState(() {});
   }
 
-  double _fontSizeForJoke(String joke) {
-    final length = joke.length.toDouble();
-
-    const maxSize = 40.0;
-    const minSize = 20.0;
-    const maxLength = 350.0;
-
-    final t = (length / maxLength).clamp(0.0, 1.0);
-    return maxSize - (maxSize - minSize) * t;
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -197,7 +187,7 @@ class _JokeSwipePageState extends State<JokeSwipePage> {
                                       _swipeItems[index].content as String,
                                       textAlign: TextAlign.center,
                                       style: TextStyle(
-                                        fontSize: _fontSizeForJoke(
+                                        fontSize: JokeUtils.fontSizeForJoke(
                                           _swipeItems[index].content as String,
                                         ),
                                       ),
