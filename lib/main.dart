@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:swipe_cards/draggable_card.dart';
 import 'package:swipe_cards/swipe_cards.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'services/joke_service.dart';
@@ -54,6 +55,25 @@ class _JokeSwipePageState extends State<JokeSwipePage> {
 
   late final JokeService _jokeService;
 
+  double _swipeProgress = 0.0;
+
+  Color get _backgroundColor {
+    if (_swipeProgress > 0) {
+      return Color.lerp(
+        Colors.white,
+        Colors.green.shade200,
+        _swipeProgress.clamp(0.0, 1.0),
+      )!;
+    } else if (_swipeProgress < 0) {
+      return Color.lerp(
+        Colors.white,
+        Colors.red.shade200,
+        (-_swipeProgress).clamp(0.0, 1.0),
+      )!;
+    }
+    return Colors.white;
+  }
+
   Future<void> updateSwipes(String jokeId, String action) async {
     debugPrint('updateSwipes started');
 
@@ -92,6 +112,18 @@ class _JokeSwipePageState extends State<JokeSwipePage> {
           nopeAction: () {
             debugPrint('NOPE pressed for id=${row['id']}');
             updateSwipes(row['id'] as String, 'nope');
+          },
+          onSlideUpdate: (SlideRegion? region) {
+            setState(() {
+              if (region == SlideRegion.inLikeRegion) {
+                _swipeProgress = 0.6;
+              } else if (region == SlideRegion.inNopeRegion) {
+                _swipeProgress = -0.6;
+              } else {
+                _swipeProgress = 0.0;
+              }
+            });
+            return Future(() => null);
           },
         );
       }).toList();
@@ -148,59 +180,63 @@ class _JokeSwipePageState extends State<JokeSwipePage> {
         ),
       ),
 
-      body: Column(
-        children: [
-          const Padding(padding: EdgeInsets.all(16)),
+      body: AnimatedContainer(
+        duration: const Duration(milliseconds: 120),
+        color: _backgroundColor,
+        child: Column(
+          children: [
+            const Padding(padding: EdgeInsets.all(16)),
 
-          SizedBox(
-            width: double.infinity,
-            height: MediaQuery.of(context).size.height * 0.55,
-            child: Padding(
-              padding: const EdgeInsets.only(left: 20.0, right: 20.0),
-              child: _matchEngine == null
-                  ? const Center(child: CircularProgressIndicator())
-                  : SwipeCards(
-                      matchEngine: _matchEngine!,
-                      itemBuilder: (BuildContext context, int index) {
-                        return Card(
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(24),
-                          ),
-                          elevation: 8,
-                          child: Center(
-                            child: SingleChildScrollView(
-                              scrollDirection: Axis.vertical,
-                              child: Padding(
-                                padding: const EdgeInsets.all(20.0),
-                                child: Center(
-                                  child: Text(
-                                    _swipeItems[index].content as String,
-                                    textAlign: TextAlign.center,
-                                    style: TextStyle(
-                                      fontSize: _fontSizeForJoke(
-                                        _swipeItems[index].content as String,
+            SizedBox(
+              width: double.infinity,
+              height: MediaQuery.of(context).size.height * 0.55,
+              child: Padding(
+                padding: const EdgeInsets.only(left: 20.0, right: 20.0),
+                child: _matchEngine == null
+                    ? const Center(child: CircularProgressIndicator())
+                    : SwipeCards(
+                        matchEngine: _matchEngine!,
+                        itemBuilder: (BuildContext context, int index) {
+                          return Card(
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(24),
+                            ),
+                            elevation: 8,
+                            child: Center(
+                              child: SingleChildScrollView(
+                                scrollDirection: Axis.vertical,
+                                child: Padding(
+                                  padding: const EdgeInsets.all(20.0),
+                                  child: Center(
+                                    child: Text(
+                                      _swipeItems[index].content as String,
+                                      textAlign: TextAlign.center,
+                                      style: TextStyle(
+                                        fontSize: _fontSizeForJoke(
+                                          _swipeItems[index].content as String,
+                                        ),
                                       ),
                                     ),
                                   ),
                                 ),
                               ),
                             ),
-                          ),
-                        );
-                      },
-                      itemChanged: (SwipeItem item, int index) {
-                        if (_swipeItems.length - index < 5) {
+                          );
+                        },
+                        itemChanged: (SwipeItem item, int index) {
+                          if (_swipeItems.length - index < 5) {
+                            _reloadJokes();
+                          }
+                        },
+                        onStackFinished: () {
                           _reloadJokes();
-                        }
-                      },
-                      onStackFinished: () {
-                        _reloadJokes();
-                        debugPrint('out of cards');
-                      },
-                    ),
+                          debugPrint('out of cards');
+                        },
+                      ),
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
       bottomNavigationBar: BottomNavigationBar(
         items: const [
