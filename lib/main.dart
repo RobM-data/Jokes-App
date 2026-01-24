@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'services/joke_service.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'services/device_user_id.dart';
+import 'services/swipe_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -74,22 +75,6 @@ class _JokeSwipePageState extends State<JokeSwipePage> {
     return Colors.white;
   }
 
-  Future<void> updateSwipes(String jokeId, String action) async {
-    debugPrint('updateSwipes started');
-
-    try {
-      final res = await supabase.from('swipes').upsert({
-        'user_id': deviceUserId,
-        'joke_id': jokeId,
-        'action': action,
-      }).select();
-
-      debugPrint('Swipe logged: $res');
-    } catch (e, st) {
-      debugPrint('Swipe log FAILED: $e\n$st');
-    }
-  }
-
   bool isLoading = false;
 
   Future<void> _reloadJokes() async {
@@ -107,11 +92,11 @@ class _JokeSwipePageState extends State<JokeSwipePage> {
           content: row['text'] as String,
           likeAction: () {
             debugPrint('LIKE pressed for id=${row['id']}');
-            updateSwipes(row['id'] as String, 'like');
+            updateSwipes(row['id'] as String, 'like', deviceUserId, supabase);
           },
           nopeAction: () {
             debugPrint('NOPE pressed for id=${row['id']}');
-            updateSwipes(row['id'] as String, 'nope');
+            updateSwipes(row['id'] as String, 'nope', deviceUserId, supabase);
           },
           onSlideUpdate: (SlideRegion? region) {
             setState(() {
