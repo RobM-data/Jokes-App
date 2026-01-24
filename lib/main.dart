@@ -185,13 +185,13 @@ class _JokeSwipePageState extends State<JokeSwipePage> {
         color: _backgroundColor,
         child: Column(
           children: [
-            const Padding(padding: EdgeInsets.all(16)),
+            const Padding(padding: EdgeInsets.all(22)),
 
             SizedBox(
               width: double.infinity,
               height: MediaQuery.of(context).size.height * 0.55,
               child: Padding(
-                padding: const EdgeInsets.only(left: 20.0, right: 20.0),
+                padding: const EdgeInsets.only(left: 40.0, right: 40.0),
                 child: _matchEngine == null
                     ? const Center(child: CircularProgressIndicator())
                     : SwipeCards(
