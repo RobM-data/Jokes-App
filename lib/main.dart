@@ -3,7 +3,6 @@ import 'package:swipe_cards/draggable_card.dart';
 import 'package:swipe_cards/swipe_cards.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'services/joke_service.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'services/device_user_id.dart';
 import 'services/swipe_service.dart';
 import 'services/utils.dart';
@@ -11,12 +10,16 @@ import 'services/utils.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  await dotenv.load(fileName: '.env');
+  const supabaseUrl = String.fromEnvironment('SUPABASE_URL');
+  const supabaseAnonKey = String.fromEnvironment('SUPABASE_ANON_KEY');
 
-  await Supabase.initialize(
-    url: dotenv.env['SUPABASE_URL']!,
-    anonKey: dotenv.env['SUPABASE_ANON_KEY']!,
-  );
+  debugPrint('Supabase URL: $supabaseUrl');
+  debugPrint('Supabase Key: $supabaseAnonKey');
+
+  assert(supabaseUrl.isNotEmpty, 'SUPABASE_URL not set');
+  assert(supabaseAnonKey.isNotEmpty, 'SUPABASE_ANON_KEY not set');
+
+  await Supabase.initialize(url: supabaseUrl, anonKey: supabaseAnonKey);
 
   runApp(const MyApp());
 }
@@ -131,6 +134,7 @@ class _JokeSwipePageState extends State<JokeSwipePage> {
     super.initState();
     _jokeService = JokeService(supabase);
     _matchEngine = MatchEngine(swipeItems: _swipeItems);
+    _reloadJokes();
     _init();
   }
 
