@@ -144,6 +144,11 @@ class _JokeSwipePageState extends State<JokeSwipePage> {
     if (mounted) setState(() {});
   }
 
+  void reportPressed() {
+    debugPrint('Report button pressed');
+    // Implement report functionality  
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -213,6 +218,10 @@ class _JokeSwipePageState extends State<JokeSwipePage> {
                         },
                       ),
               ),
+            ),
+            ElevatedButton(
+              onPressed: reportPressed, 
+              child: Text('Report'),
             ),
           ],
         ),
