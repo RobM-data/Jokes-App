@@ -6,6 +6,7 @@ import 'services/joke_service.dart';
 import 'services/device_user_id.dart';
 import 'services/swipe_service.dart';
 import 'services/utils.dart';
+import 'services/report_joke.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -55,6 +56,10 @@ class JokeSwipePage extends StatefulWidget {
 }
 
 class _JokeSwipePageState extends State<JokeSwipePage> {
+
+  String? _currentJokeId;
+  Map<String, String>? _currentJokeData;
+
   final List<SwipeItem> _swipeItems = <SwipeItem>[];
   MatchEngine? _matchEngine;
 
@@ -93,7 +98,8 @@ class _JokeSwipePageState extends State<JokeSwipePage> {
 
       final newItems = jokes.map((row) {
         return SwipeItem(
-          content: row['text'] as String,
+          content: {'text':row['text'] as String,
+                    'id': row['joke_id'] as String},
           likeAction: () {
             debugPrint('LIKE pressed for id=${row['joke_id']}');
             updateSwipes(row['joke_id'] as String, 'like', deviceUserId, supabase);
@@ -119,6 +125,7 @@ class _JokeSwipePageState extends State<JokeSwipePage> {
 
       setState(() {
         _swipeItems.addAll(newItems);
+        _matchEngine = MatchEngine(swipeItems: _swipeItems);
       });
     } catch (e, st) {
       debugPrint('Error reloading jokes: $e\n$st');
@@ -144,9 +151,41 @@ class _JokeSwipePageState extends State<JokeSwipePage> {
     if (mounted) setState(() {});
   }
 
-  void reportPressed() {
-    debugPrint('Report button pressed');
-    // Implement report functionality  
+  void reportPressed() async {
+    if (_currentJokeId == null) {
+      debugPrint('No joke selected to report');
+      return;
+    }
+
+    final reason = await showDialog<String>(
+      context: context,
+      builder: (context) {
+        return SimpleDialog(
+          title: const Text('Report Joke'),
+          children: [
+            SimpleDialogOption(
+              onPressed: () => Navigator.pop(context, 'Not a Joke'),
+              child: const Text('Not a Joke'),
+            ),
+            const Divider(),
+            SimpleDialogOption(
+              onPressed: () => Navigator.pop(context, null),
+              child: const Text('Cancel'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (reason == null) return; // user cancelled
+
+    reportJoke(_currentJokeId!, reason, deviceUserId, supabase);
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Report submitted')),
+      );
+    }
   }
 
   @override
@@ -181,6 +220,9 @@ class _JokeSwipePageState extends State<JokeSwipePage> {
                     : SwipeCards(
                         matchEngine: _matchEngine!,
                         itemBuilder: (BuildContext context, int index) {
+                          final data = _swipeItems[index].content as Map<String, String>;
+                          final text = data['text']!;
+
                           return Card(
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(24),
@@ -193,12 +235,10 @@ class _JokeSwipePageState extends State<JokeSwipePage> {
                                   padding: const EdgeInsets.all(20.0),
                                   child: Center(
                                     child: Text(
-                                      _swipeItems[index].content as String,
+                                      text,
                                       textAlign: TextAlign.center,
                                       style: TextStyle(
-                                        fontSize: JokeUtils.fontSizeForJoke(
-                                          _swipeItems[index].content as String,
-                                        ),
+                                        fontSize: JokeUtils.fontSizeForJoke(text),
                                       ),
                                     ),
                                   ),
@@ -208,6 +248,10 @@ class _JokeSwipePageState extends State<JokeSwipePage> {
                           );
                         },
                         itemChanged: (SwipeItem item, int index) {
+                          final data = item.content as Map<String, String>;
+                          _currentJokeData = data;
+                          _currentJokeId = data['id'];
+
                           if (_swipeItems.length - index < 5) {
                             _reloadJokes();
                           }
