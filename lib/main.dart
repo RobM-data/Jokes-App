@@ -95,12 +95,12 @@ class _JokeSwipePageState extends State<JokeSwipePage> {
         return SwipeItem(
           content: row['text'] as String,
           likeAction: () {
-            debugPrint('LIKE pressed for id=${row['id']}');
-            updateSwipes(row['id'] as String, 'like', deviceUserId, supabase);
+            debugPrint('LIKE pressed for id=${row['joke_id']}');
+            updateSwipes(row['joke_id'] as String, 'like', deviceUserId, supabase);
           },
           nopeAction: () {
-            debugPrint('NOPE pressed for id=${row['id']}');
-            updateSwipes(row['id'] as String, 'nope', deviceUserId, supabase);
+            debugPrint('NOPE pressed for id=${row['joke_id']}');
+            updateSwipes(row['joke_id'] as String, 'nope', deviceUserId, supabase);
           },
           onSlideUpdate: (SlideRegion? region) {
             setState(() {

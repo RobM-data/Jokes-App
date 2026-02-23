@@ -34,8 +34,8 @@ class JokeService {
 
     final windowData = await _supabase
         .from('jokes')
-        .select('id, text')
-        .not('id', 'in', swiped) // <-- pass the awaited list
+        .select('joke_id, text')
+        .not('joke_id', 'in', swiped) // <-- pass the awaited list
         .range(offset, offset + windowSize - 1);
 
     final List<Map<String, dynamic>> jokes = (windowData as List).cast<Map<String, dynamic>>();
