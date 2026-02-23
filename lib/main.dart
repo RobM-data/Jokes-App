@@ -177,9 +177,16 @@ class _JokeSwipePageState extends State<JokeSwipePage> {
       },
     );
 
-    if (reason == null) return; // user cancelled
+    if (reason == null) return;
 
-    reportJoke(_currentJokeId!, reason, deviceUserId, supabase);
+    await reportJoke(_currentJokeId!, reason, deviceUserId, supabase);
+
+    if (_swipeItems.isNotEmpty) {
+      setState(() {
+        _swipeItems.removeAt(0);
+        _matchEngine = MatchEngine(swipeItems: _swipeItems);
+      });
+    }
 
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
