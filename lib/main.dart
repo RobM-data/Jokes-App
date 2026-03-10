@@ -9,12 +9,9 @@ import 'services/report_joke.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
   const supabaseUrl = String.fromEnvironment('SUPABASE_URL');
   const supabaseAnonKey = String.fromEnvironment('SUPABASE_ANON_KEY');
-
   await Supabase.initialize(url: supabaseUrl, anonKey: supabaseAnonKey);
-  
   runApp(const MyApp());
 }
 
@@ -22,15 +19,10 @@ final supabase = Supabase.instance.client;
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
-
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Jokes App',
-      theme: ThemeData(
-        useMaterial3: true,
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
-      ),
+      theme: ThemeData(useMaterial3: true, colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue)),
       home: const JokeSwipePage(),
       debugShowCheckedModeBanner: false,
     );
@@ -39,7 +31,6 @@ class MyApp extends StatelessWidget {
 
 class JokeSwipePage extends StatefulWidget {
   const JokeSwipePage({super.key});
-
   @override
   State<JokeSwipePage> createState() => _JokeSwipePageState();
 }
@@ -50,29 +41,36 @@ class _JokeSwipePageState extends State<JokeSwipePage> with SingleTickerProvider
   late final JokeService _jokeService;
   bool isLoading = false;
 
-  // Swipe State
   Offset _position = Offset.zero;
   bool _isDragging = false;
   Size _screenSize = Size.zero;
 
-  // Animation for smooth reset
-  late AnimationController _resetController;
-  late Animation<Offset> _resetAnimation;
+  late AnimationController _animationController;
+  Animation<Offset>? _swipeAnimation; // Made this nullable
 
   @override
   void initState() {
     super.initState();
     _jokeService = JokeService(supabase);
-    _resetController = AnimationController(
+    
+    _animationController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 250),
+      duration: const Duration(milliseconds: 250), // Slightly slower for a smoother fly-away
     );
+
+    // One global listener that only updates if there's an active animation
+    _animationController.addListener(() {
+      if (_swipeAnimation != null) {
+        setState(() => _position = _swipeAnimation!.value);
+      }
+    });
+
     _init();
   }
 
   @override
   void dispose() {
-    _resetController.dispose();
+    _animationController.dispose();
     super.dispose();
   }
 
@@ -84,12 +82,8 @@ class _JokeSwipePageState extends State<JokeSwipePage> with SingleTickerProvider
   Future<void> _reloadJokes() async {
     if (isLoading) return;
     setState(() => isLoading = true);
-
     try {
-      final newJokes = await _jokeService.fetchJokes(
-        limit: 10,
-        userId: deviceUserId,
-      );
+      final newJokes = await _jokeService.fetchJokes(limit: 10, userId: deviceUserId);
       setState(() => _jokes.addAll(newJokes));
     } catch (e) {
       debugPrint('Fetch Error: $e');
@@ -98,10 +92,8 @@ class _JokeSwipePageState extends State<JokeSwipePage> with SingleTickerProvider
     }
   }
 
-  // --- Swiping Logic ---
-
   void _onPanStart(DragStartDetails details) {
-    _resetController.stop(); 
+    if (_animationController.isAnimating) return; // Prevent grabbing while flying away
     setState(() => _isDragging = true);
   }
 
@@ -111,52 +103,59 @@ class _JokeSwipePageState extends State<JokeSwipePage> with SingleTickerProvider
 
   void _onPanEnd(DragEndDetails details) {
     final x = _position.dx;
-    final threshold = _screenSize.width * 0.4;
+    final threshold = _screenSize.width * 0.35;
 
     if (x > threshold) {
-      _executeSwipe(true); // Like
+      _animateOffScreen(true);
     } else if (x < -threshold) {
-      _executeSwipe(false); // Nope
+      _animateOffScreen(false);
     } else {
       _resetPosition();
     }
   }
 
+  void _animateOffScreen(bool isLike) {
+    final endX = isLike ? _screenSize.width * 1.5 : -_screenSize.width * 1.5;
+    
+    _swipeAnimation = Tween<Offset>(
+      begin: _position,
+      end: Offset(endX, _position.dy),
+    ).animate(CurvedAnimation(parent: _animationController, curve: Curves.easeIn));
+
+    _animationController.forward(from: 0.0).then((_) {
+      _swipeAnimation = null; // Detach the animation before resetting!
+      _executeSwipe(isLike);
+    });
+  }
+
   void _resetPosition() {
-    _resetAnimation = Tween<Offset>(
+    _swipeAnimation = Tween<Offset>(
       begin: _position,
       end: Offset.zero,
-    ).animate(CurvedAnimation(
-      parent: _resetController,
-      curve: Curves.easeOut, // Linear fade back without overshoot bounce
-    )..addListener(() {
-        setState(() => _position = _resetAnimation.value);
-      }));
+    ).animate(CurvedAnimation(parent: _animationController, curve: Curves.easeOut));
 
-    _resetController.forward(from: 0.0).then((_) {
+    _animationController.forward(from: 0.0).then((_) {
+      _swipeAnimation = null; // Detach here too
       setState(() => _isDragging = false);
     });
   }
 
   void _executeSwipe(bool isLike) {
     if (_jokes.isEmpty) return;
-    
     final jokeId = _jokes.first['joke_id'];
     updateSwipes(jokeId, isLike ? 'like' : 'nope', deviceUserId, supabase);
 
     setState(() {
       _jokes.removeAt(0);
-      _position = Offset.zero;
+      _position = Offset.zero; // This will now safely hold the new card in the center
       _isDragging = false;
     });
-
     if (_jokes.length < 5) _reloadJokes();
   }
 
   void _reportCurrent() async {
     if (_jokes.isEmpty) return;
     final jokeId = _jokes.first['joke_id'];
-
     final reason = await showDialog<String>(
       context: context,
       builder: (context) => SimpleDialog(
@@ -168,31 +167,25 @@ class _JokeSwipePageState extends State<JokeSwipePage> with SingleTickerProvider
         ],
       ),
     );
-
     if (reason != null) {
       await reportJoke(jokeId, reason, deviceUserId, supabase);
-      _executeSwipe(false);
+      _animateOffScreen(false);
     }
   }
 
-  // --- UI Helpers ---
-
   Color get _backgroundColor {
     if (_position.dx == 0) return Colors.white;
-    // Calculate ratio based on horizontal movement
     double ratio = (_position.dx / (_screenSize.width * 0.45)).abs().clamp(0.0, 1.0);
-    
     if (_position.dx > 0) {
-      return Color.lerp(Colors.white, Colors.green.shade100, ratio * 0.9)!;
+      return Color.lerp(Colors.white, Colors.green.shade100, ratio)!;
     } else {
-      return Color.lerp(Colors.white, Colors.red.shade100, ratio * 0.9)!;
+      return Color.lerp(Colors.white, Colors.red.shade100, ratio)!;
     }
   }
 
   @override
   Widget build(BuildContext context) {
     _screenSize = MediaQuery.of(context).size;
-
     return Scaffold(
       backgroundColor: _backgroundColor,
       appBar: AppBar(title: const Text("Joke Swipe")),
@@ -209,7 +202,6 @@ class _JokeSwipePageState extends State<JokeSwipePage> with SingleTickerProvider
                 else
                   ..._jokes.asMap().entries.map((entry) {
                     int index = entry.key;
-                    // Only render top 2 cards for performance
                     if (index > 1) return const SizedBox.shrink();
                     return _buildCard(entry.value, index == 0);
                   }).toList().reversed,
@@ -226,6 +218,7 @@ class _JokeSwipePageState extends State<JokeSwipePage> with SingleTickerProvider
           ),
         ],
       ),
+      // Here are your buttons back!
       bottomNavigationBar: BottomNavigationBar(
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.swipe), label: 'Swipe'),
@@ -237,9 +230,7 @@ class _JokeSwipePageState extends State<JokeSwipePage> with SingleTickerProvider
   }
 
   Widget _buildCard(Map<String, dynamic> joke, bool isFront) {
-    // Rotation logic: rotate slightly based on swipe distance
     final angle = isFront ? (_position.dx / _screenSize.width) * 0.4 : 0.0;
-    
     return Center(
       child: GestureDetector(
         onPanStart: isFront ? _onPanStart : null,
@@ -249,47 +240,7 @@ class _JokeSwipePageState extends State<JokeSwipePage> with SingleTickerProvider
           offset: isFront ? _position : Offset.zero,
           child: Transform.rotate(
             angle: angle,
-            child: Stack(
-              children: [
-                _CardContent(text: joke['text'] ?? "", isFront: isFront),
-                if (isFront) _buildStamp(),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildStamp() {
-    // Deadzone check: don't show any stamp if the card is near center
-    if (_position.dx.abs() < 15) return const SizedBox.shrink();
-
-    double opacity = (_position.dx.abs() / 100).clamp(0.0, 1.0);
-    bool isLike = _position.dx > 0;
-
-    return Positioned(
-      top: 40,
-      left: isLike ? 20 : null,
-      right: isLike ? null : 20,
-      child: Transform.rotate(
-        angle: isLike ? -0.5 : 0.5,
-        child: Opacity(
-          opacity: opacity,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              border: Border.all(color: isLike ? Colors.green : Colors.red, width: 4),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Text(
-              isLike ? "LIKE" : "NOPE",
-              style: TextStyle(
-                color: isLike ? Colors.green : Colors.red,
-                fontSize: 32,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
+            child: _CardContent(text: joke['text'] ?? "", isFront: isFront),
           ),
         ),
       ),
@@ -301,7 +252,6 @@ class _CardContent extends StatelessWidget {
   final String text;
   final bool isFront;
   const _CardContent({required this.text, required this.isFront});
-
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -310,13 +260,7 @@ class _CardContent extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(isFront ? 0.15 : 0.05), 
-            blurRadius: 10, 
-            spreadRadius: 2
-          ),
-        ],
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(isFront ? 0.15 : 0.05), blurRadius: 10, spreadRadius: 2)],
       ),
       padding: const EdgeInsets.all(30),
       alignment: Alignment.center,
@@ -324,10 +268,7 @@ class _CardContent extends StatelessWidget {
         child: Text(
           text,
           textAlign: TextAlign.center,
-          style: TextStyle(
-            fontSize: JokeUtils.fontSizeForJoke(text),
-            fontWeight: FontWeight.w500,
-          ),
+          style: TextStyle(fontSize: JokeUtils.fontSizeForJoke(text), fontWeight: FontWeight.w500),
         ),
       ),
     );
