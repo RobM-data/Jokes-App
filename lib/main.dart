@@ -14,14 +14,14 @@ Future<void> main() async {
   const supabaseUrl = String.fromEnvironment('SUPABASE_URL');
   const supabaseAnonKey = String.fromEnvironment('SUPABASE_ANON_KEY');
 
-  debugPrint('Supabase URL: $supabaseUrl');
-  debugPrint('Supabase Key: $supabaseAnonKey');
-
-  assert(supabaseUrl.isNotEmpty, 'SUPABASE_URL not set');
-  assert(supabaseAnonKey.isNotEmpty, 'SUPABASE_ANON_KEY not set');
+  if (supabaseUrl.isEmpty || supabaseAnonKey.isEmpty) {
+    debugPrint('❌ ERROR: Supabase credentials are empty!');
+    // Don't stop the app, let it show an error later or at least try to run
+  }
 
   await Supabase.initialize(url: supabaseUrl, anonKey: supabaseAnonKey);
-
+  debugPrint('✅ Supabase initialized successfully');
+  
   runApp(const MyApp());
 }
 
@@ -58,15 +58,111 @@ class JokeSwipePage extends StatefulWidget {
 class _JokeSwipePageState extends State<JokeSwipePage> {
 
   String? _currentJokeId;
-  Map<String, String>? _currentJokeData;
-
   final List<SwipeItem> _swipeItems = <SwipeItem>[];
   MatchEngine? _matchEngine;
-
   late final JokeService _jokeService;
-
   double _swipeProgress = 0.0;
+  bool isLoading = false;
+  late String deviceUserId;
 
+  @override
+  void initState() {
+    super.initState();
+    _jokeService = JokeService(supabase);
+    _init();
+  }
+
+  Future<void> _init() async {
+    debugPrint('🚀 Starting _init...');
+    try {
+      final id = await DeviceUserId.getUserId(); 
+      debugPrint('🆔 Got Device ID: $id');
+      setState(() {
+        deviceUserId = id;
+      });
+      await _reloadJokes();
+      debugPrint('🃏 Jokes reloaded!');
+    } catch (e) {
+      debugPrint('❌ Error in _init: $e');
+    }
+  }
+
+  Future<void> _reloadJokes() async {
+    if (isLoading) return;
+    isLoading = true;
+
+    try {
+      final jokes = await _jokeService.fetchJokes(
+        limit: 10,
+        userId: deviceUserId,
+      );
+
+      final newItems = jokes.map((row) {
+        return SwipeItem(
+          content: {'text': row['text'] as String, 'id': row['joke_id'] as String},
+          likeAction: () => updateSwipes(row['joke_id'] as String, 'like', deviceUserId, supabase),
+          nopeAction: () => updateSwipes(row['joke_id'] as String, 'nope', deviceUserId, supabase),
+          onSlideUpdate: (SlideRegion? region) {
+            setState(() {
+              if (region == SlideRegion.inLikeRegion) {_swipeProgress = 0.6;}
+              else if (region == SlideRegion.inNopeRegion) {_swipeProgress = -0.6;}
+              else {_swipeProgress = 0.0;}
+            });
+            return Future.value(null);
+          },
+        );
+      }).toList();
+
+      setState(() {
+        _swipeItems.addAll(newItems);
+        if (_matchEngine == null) {
+        _matchEngine = MatchEngine(swipeItems: _swipeItems);
+        // FIX: Set the ID for the very first joke so "Report" works immediately
+        _currentJokeId = jokes[0]['joke_id'] as String; 
+      }
+      });
+    } catch (e, st) {
+      debugPrint('Error reloading jokes: $e\n$st');
+    } finally {
+      isLoading = false;
+    }
+  }
+
+  void reportPressed() async {
+    if (_currentJokeId == null || _matchEngine == null) return;
+
+    final reason = await showDialog<String>(
+      context: context,
+      builder: (context) => SimpleDialog(
+        title: const Text('Report Joke'),
+        children: [
+          SimpleDialogOption(
+            onPressed: () => Navigator.pop(context, 'Not a Joke'),
+            child: const Text('Not a Joke'),
+          ),
+          const Divider(),
+          SimpleDialogOption(
+            onPressed: () => Navigator.pop(context, null),
+            child: const Text('Cancel'),
+          ),
+        ],
+      ),
+    );
+
+    if (reason == null) return;
+
+    await reportJoke(_currentJokeId!, reason, deviceUserId, supabase);
+
+    // FIX: Trigger a programatic swipe instead of rebuilding the engine
+    _matchEngine!.currentItem?.nope(); 
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Report submitted')),
+      );
+    }
+  }
+  
   Color get _backgroundColor {
     if (_swipeProgress > 0) {
       return Color.lerp(
@@ -84,117 +180,6 @@ class _JokeSwipePageState extends State<JokeSwipePage> {
     return Colors.white;
   }
 
-  bool isLoading = false;
-
-  Future<void> _reloadJokes() async {
-    if (isLoading) return;
-    isLoading = true;
-
-    try {
-      final jokes = await _jokeService.fetchJokes(
-        limit: 10,
-        userId: deviceUserId,
-      );
-
-      final newItems = jokes.map((row) {
-        return SwipeItem(
-          content: {'text':row['text'] as String,
-                    'id': row['joke_id'] as String},
-          likeAction: () {
-            debugPrint('LIKE pressed for id=${row['joke_id']}');
-            updateSwipes(row['joke_id'] as String, 'like', deviceUserId, supabase);
-          },
-          nopeAction: () {
-            debugPrint('NOPE pressed for id=${row['joke_id']}');
-            updateSwipes(row['joke_id'] as String, 'nope', deviceUserId, supabase);
-          },
-          onSlideUpdate: (SlideRegion? region) {
-            setState(() {
-              if (region == SlideRegion.inLikeRegion) {
-                _swipeProgress = 0.6;
-              } else if (region == SlideRegion.inNopeRegion) {
-                _swipeProgress = -0.6;
-              } else {
-                _swipeProgress = 0.0;
-              }
-            });
-            return Future(() => null);
-          },
-        );
-      }).toList();
-
-      setState(() {
-        _swipeItems.addAll(newItems);
-        _matchEngine = MatchEngine(swipeItems: _swipeItems);
-      });
-    } catch (e, st) {
-      debugPrint('Error reloading jokes: $e\n$st');
-    } finally {
-      isLoading = false;
-    }
-  }
-
-  late String deviceUserId;
-
-  @override
-  void initState() {
-    super.initState();
-    _jokeService = JokeService(supabase);
-    _matchEngine = MatchEngine(swipeItems: _swipeItems);
-    _reloadJokes();
-    _init();
-  }
-
-  Future<void> _init() async {
-    deviceUserId = await DeviceUserId.getUserId(); // or getOrCreate()
-    await _reloadJokes();
-    if (mounted) setState(() {});
-  }
-
-  void reportPressed() async {
-    if (_currentJokeId == null) {
-      debugPrint('No joke selected to report');
-      return;
-    }
-
-    final reason = await showDialog<String>(
-      context: context,
-      builder: (context) {
-        return SimpleDialog(
-          title: const Text('Report Joke'),
-          children: [
-            SimpleDialogOption(
-              onPressed: () => Navigator.pop(context, 'Not a Joke'),
-              child: const Text('Not a Joke'),
-            ),
-            const Divider(),
-            SimpleDialogOption(
-              onPressed: () => Navigator.pop(context, null),
-              child: const Text('Cancel'),
-            ),
-          ],
-        );
-      },
-    );
-
-    if (reason == null) return;
-
-    await reportJoke(_currentJokeId!, reason, deviceUserId, supabase);
-
-    if (_swipeItems.isNotEmpty) {
-      setState(() {
-        _swipeItems.removeAt(0);
-        _matchEngine = MatchEngine(swipeItems: _swipeItems);
-      });
-    }
-
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Report submitted')),
-      );
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -204,7 +189,7 @@ class _JokeSwipePageState extends State<JokeSwipePage> {
           children: [
             Padding(
               padding: const EdgeInsets.only(left: 12),
-              child: Image.asset('assets/logo.png', height: 32),
+              child: Text("Joke Swipe"),
             ),
           ],
         ),
@@ -256,7 +241,6 @@ class _JokeSwipePageState extends State<JokeSwipePage> {
                         },
                         itemChanged: (SwipeItem item, int index) {
                           final data = item.content as Map<String, String>;
-                          _currentJokeData = data;
                           _currentJokeId = data['id'];
 
                           if (_swipeItems.length - index < 5) {
